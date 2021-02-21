@@ -13,6 +13,12 @@ const admin = require('firebase-admin');
 admin.initializeApp();
  
 exports.postComment = functions.https.onCall(async(data, context) => {
+    checkAuthentication(context);
+    dataValidator(data, {
+      noteId: 'string',
+      text: 'string'
+
+    });
     const db = admin.firestore();
     const snapshot = await db
     .collection('publicProfiles')
@@ -27,6 +33,31 @@ exports.postComment = functions.https.onCall(async(data, context) => {
       note: db.collection('notes').doc(data.noteId)
  });
 });
+
+/*
+creating validations
+*/ 
+
+function dataValidator(data, validKeys){
+  if(Object.keys(data).length !== Object.keys(validKeys).length){
+    throw new functions.https.HttpsError('Invalid-Argument',
+    'Data Object contains invalid number of properties ');
+  }else{
+    for(let key in data){
+      if(!validKeys[key] || typeof data[key] !== validKeys[key]){
+        throw new functions.https.HttpsError('Invalid-Argument',
+        'Data Object contains invalid properties ');
+      }
+    }
+  }
+}
+
+function checkAuthentication(context){
+  if(!context.auth){
+    throw new functions.https.HttpsError('unauthenticated',
+    'you must be signed in to use this feature');
+  }
+}
 
 
 
