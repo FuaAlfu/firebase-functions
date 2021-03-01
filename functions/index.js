@@ -32,6 +32,12 @@ exports.createPublicProfile = functions.https.onCall(async(data,context) => {
     'this username already belongs to an existing user.')
   }
 
+  const user = await admin.auth().getUser(context.auth.uid);
+  if(user.email === functions.config().accounts.admin){
+    //we want to assign custom claims
+    await admin.auth().setCustomUserClaims(context.auth.uid, {admin: true});
+  }
+
   return admin.firestore().collection('publicProfiles').doc(data.username).set({
       userId: context.auth.uid
     })
