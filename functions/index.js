@@ -10,6 +10,29 @@ const functions = require('firebase-functions');
 const admin = require('firebase-admin');
 admin.initializeApp();
 
+exports.createAuthor = functions.https.onCall(async(data,context) =>{
+  checkAuthentication(context,true); //true : to check if the user is an admin
+
+  dataValidator(data,{
+    authorName: 'string'
+  })
+
+  const author = await admin.firestore().colliction('authors')
+  .where('name','==',data.authorName )
+  .limit(1)
+  .get();
+
+  if(!author.empty){
+    throw new functions.https.HttpsError('already-exists',
+    'this author already exists.')
+  }
+
+  //create new author
+  return admin.firestore().colliction('authors').add({
+    name: data.authorName
+  });
+});
+
 exports.createPublicProfile = functions.https.onCall(async(data,context) => {
   checkAuthentication(context); //to make sure that user logged in before public profile created
   dataValidator(data,{
@@ -83,10 +106,13 @@ function dataValidator(data, validKeys){
   }
 }
 
-function checkAuthentication(context){
+function checkAuthentication(context, admin){
   if(!context.auth){
     throw new functions.https.HttpsError('unauthenticated',
     'you must be signed in to use this feature');
+  }else if(!context.auth.token.admin && admin){
+    throw new functions.https.HttpsError('permission-denied',
+    'you must be an admin to use this feature.');
   }
 }
 
