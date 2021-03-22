@@ -8,7 +8,32 @@
 
 const functions = require('firebase-functions');
 const admin = require('firebase-admin');
+const mimTypes = require('mimeTypes')
 admin.initializeApp();
+
+exports.createNote = functions.https.onCall(async (data,context) => {
+checkAuthentication(context,true); //make sure admin is true
+dataValidator(data,{
+noteName: 'string',
+authorId: 'string',
+noteCover: 'string'
+});
+const mimeType = data.noteCover.match(/data:([a-zA-Z0-9]+\/[a-zA-Z0-9-.+]+).*,.*/)[1];
+const base64EncodedImageString = data.noteCover.replace(/^data:image\/\w+;base64,/, '');
+const imageBuffer = new Buffer(base64EncodedImageString, 'base64');
+
+const filename = `noteCovers/${data.bookName}.${mimeTypes.detectExtension(mimeType)}`;
+const file = admin.storage().bucket().file(filename);
+await file.save(imageBuffer, { contentType: 'image/jpeg' });
+const fileUrl = await file.getSignedUrl({ action: 'read', expires: '03-09-2491' }).then(urls => urls[0]);
+
+return admin.firestore().collection('notes').add({
+  //add new note here
+  title: data.noteName,
+  ImageUrl: fileUrl,
+  author: admin.firestore().collection('authors').doc(data.authorId)
+})
+})
 
 exports.createAuthor = functions.https.onCall(async(data,context) =>{
   checkAuthentication(context,true); //true : to check if the user is an admin
